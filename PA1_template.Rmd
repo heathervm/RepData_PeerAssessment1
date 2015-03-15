@@ -1,25 +1,71 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "assignment_1"
+output: html_document
 ---
 
+```{r read_csv, echo=TRUE}
+rawdata <- read.csv("/Users/heathermurray/Downloads/activity.csv", header = TRUE)
+require(dplyr)
+library(dplyr)
+```
+#### Days vs. Steps
+```{r, make_hist1}
+remove_na <- filter(rawdata, steps !="NA")
+groups <- group_by(remove_na, date)
+summary <- summarize(groups, mean_steps = mean(steps, na.rm = TRUE), median_steps = median(steps, na.rm = TRUE))
+as_frame <- data.frame(summary)
+mean_steps <- select(as_frame, date, mean_steps)
+median_steps <- select(as_frame, date, median_steps)
+as_date <- as.Date(as_frame$date)
+plot(as_date, mean_steps$mean_steps, type = "l", xlab = "Date", ylab = "Steps")
+```
+#### The mean and median 
+```{r mean_median}
+print(mean_steps)
+print(median_steps)
+```
 
-## Loading and preprocessing the data
+```{r make_plot1, fig.height=20, fig.width=20}
+group_interval <- group_by(remove_na, interval)
+mean_interval <- summarize(group_interval, mean_steps = mean(steps, na.rm=TRUE))
+intervals <- mean_interval$interval
+steps <- mean_interval$mean_steps
+plot(intervals, steps, type="l", xaxt="n")
+axis(1, at=c(seq(0, 2355, by=100)), labels=TRUE)
 
+```
 
+#### Counting the number of missing values
+```{r number_na}
+num_na <- nrow(rawdata)-nrow(remove_na)
+print(num_na)
+```
 
-## What is mean total number of steps taken per day?
+#### Replacing the NA values with the mean of the interval gives you this
+```{r replace_means}
+replace_means <- rawdata %>%
+  group_by(interval) %>% 
+  mutate(steps = replace(steps, is.na(steps), mean(steps, na.rm=TRUE)))
+plot(replace_means$interval, replace_means$steps, type = "l", xlab="interval", ylab = "mean steps")
+axis(1, at=c(seq(0, 2355, by=100)), labels=TRUE)
+```
 
+#### Dividing the week
+```{r days_of_the_week}
+dates <- as.Date(replace_means$date)
+days <- weekdays(dates)
+replace_means["weekdays"] <- days
+mon_fri <- subset(replace_means, weekdays !="Saturday"| weekdays != "Sunday")
+weekends <- subset(replace_means, weekdays == "Saturday" | weekdays == "Sunday")
+mean_weekday <- summarize(mon_fri, steps_mon_fri = mean(steps, na.rm=TRUE))
+mon_fri_mean <- mean_weekday$steps_mon_fri
+mean_weekend <- summarize(weekends, steps_weekends = mean(steps, na.rm=TRUE))
+weekend_mean <- mean_weekend$steps_weekends
+```
 
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+```{r plot_days}
+par(mfrow=c(1,2))
+plot(mean_weekday$interval, mon_fri_mean, type = "l", xlab = "interval", ylab = "average weekday steps")
+plot(mean_weekend$interval, weekend_mean, type = "l", xlab = "interval", ylab = "average weekend steps")
+```
+There are more periods of activity on weekends than weekdays. On weekdays the greatest number of steps is concentrated around the 800-1000 second interval. On the weekend there are multiple peaks between the 800-2000 intervals. 
